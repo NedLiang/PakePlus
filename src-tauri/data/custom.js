@@ -1,15 +1,688 @@
-console.log('custom.js ----')
+window.addEventListener("DOMContentLoaded",()=>{const t=document.createElement("script");t.src="https://www.googletagmanager.com/gtag/js?id=G-W5GKHM0893",t.async=!0,document.head.appendChild(t);const n=document.createElement("script");n.textContent="window.dataLayer = window.dataLayer || [];function gtag(){dataLayer.push(arguments);}gtag('js', new Date());gtag('config', 'G-W5GKHM0893');",document.body.appendChild(n)});<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>拍摄项目进度</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+    background: transparent;
+    overflow: hidden;
+  }
+  #card {
+    width: 340px;
+    background: #14171e;
+    border: 1px solid #262c38;
+    border-radius: 14px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 8px 30px rgba(0,0,0,.5);
+    user-select: none;
+  }
+  /* 标题栏 */
+  #titlebar {
+    height: 44px;
+    background: #1b1f28;
+    display: flex;
+    align-items: center;
+    padding: 0 8px 0 12px;
+    gap: 6px;
+    cursor: move;
+    flex-shrink: 0;
+  }
+  #dot { color: #2ea043; font-size: 10px; }
+  #projName {
+    flex: 1;
+    color: #e6edf3;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  #projName:hover { color: #58a6ff; }
+  .tool {
+    background: transparent;
+    border: none;
+    color: #8b949e;
+    font-size: 13px;
+    padding: 3px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .tool:hover { background: #2a3040; color: #e6edf3; }
+  .tool.active { color: #58a6ff; }
+  /* 日期条 */
+  #datebar {
+    background: #171b23;
+    border-bottom: 1px solid #232936;
+    padding: 6px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #9aa4b2;
+    flex-shrink: 0;
+  }
+  #warn { color: #f85149; font-weight: 600; font-size: 11px; display: none; }
+  /* 日历面板 */
+  #calPanel {
+    background: #171b23;
+    border-bottom: 1px solid #232936;
+    padding: 8px;
+    display: none;
+    flex-shrink: 0;
+  }
+  #calPanel.show { display: block; }
+  .cal-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+    padding: 0 4px;
+  }
+  .cal-head button {
+    background: transparent;
+    border: none;
+    color: #8b949e;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+  .cal-head button:hover { background: #2d333b; color: #e6edf3; }
+  #calTitle { color: #e6edf3; font-size: 12px; font-weight: 600; }
+  #calGrid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+  }
+  #calGrid .wd {
+    text-align: center;
+    font-size: 10px;
+    color: #5b6472;
+    padding: 2px 0;
+  }
+  #calGrid .day {
+    text-align: center;
+    font-size: 11px;
+    color: #c9d1d9;
+    padding: 4px 0;
+    border-radius: 4px;
+    cursor: pointer;
+    position: relative;
+  }
+  #calGrid .day:hover { background: #2d333b; }
+  #calGrid .day.other { color: #3d444d; cursor: default; }
+  #calGrid .day.today { border: 1px solid #58a6ff; }
+  #calGrid .day.has-proj { background: #1f6feb; color: #fff; font-weight: 600; }
+  #calGrid .day.sel { background: #2ea043; color: #fff; font-weight: 600; }
+  #calSetBtn {
+    width: 100%;
+    margin-top: 6px;
+    background: #21262d;
+    color: #c9d1d9;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 5px;
+    font-size: 11px;
+    cursor: pointer;
+  }
+  #calSetBtn:hover { background: #2d333b; }
+  /* 内容区 */
+  #content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  #content::-webkit-scrollbar { width: 6px; }
+  #content::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+  #content::-webkit-scrollbar-thumb:hover { background: #484f58; }
+  .stage {
+    background: #1a1e27;
+    border: 1px solid #232936;
+    border-radius: 10px;
+    padding: 6px 8px 8px;
+  }
+  .stage-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    padding: 2px;
+    height: 24px;
+  }
+  .stage-arrow { color: #58a6ff; font-size: 11px; width: 12px; }
+  .stage-title { color: #e6edf3; font-size: 13px; font-weight: 600; flex: 1; }
+  .stage-count { color: #8b949e; font-size: 11px; }
+  .stage-count.done { color: #2ea043; }
+  .stage-body { display: flex; flex-direction: column; gap: 4px; margin-top: 5px; }
+  .stage-body.hide { display: none; }
+  /* 子项 */
+  .item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 30px;
+    padding: 0 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: background .12s;
+  }
+  .item .icon { width: 14px; text-align: center; font-size: 11px; }
+  .item .name { flex: 1; font-size: 12px; color: #c9d1d9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .item .status { font-size: 11px; }
+  .item.s0 { background: rgba(107,114,128,.10); border-color: rgba(107,114,128,.30); }
+  .item.s0:hover { background: rgba(107,114,128,.22); }
+  .item.s0 .icon, .item.s0 .status { color: #6b7280; }
+  .item.s1 { background: rgba(210,153,34,.10); border-color: rgba(210,153,34,.35); }
+  .item.s1:hover { background: rgba(210,153,34,.22); }
+  .item.s1 .icon, .item.s1 .status { color: #d29922; }
+  .item.s2 { background: rgba(46,160,67,.10); border-color: rgba(46,160,67,.35); }
+  .item.s2:hover { background: rgba(46,160,67,.22); }
+  .item.s2 .icon, .item.s2 .status { color: #2ea043; }
+  /* 底栏 */
+  #footer {
+    background: #1b1f28;
+    border-top: 1px solid #232936;
+    padding: 8px 14px 12px;
+    flex-shrink: 0;
+  }
+  .prog-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+    font-size: 12px;
+  }
+  #progLabel { color: #8b949e; }
+  #progPct { color: #58a6ff; font-weight: 600; }
+  #progBar {
+    height: 6px;
+    background: #262c38;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  #progFill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #2ea043, #3fb950);
+    border-radius: 3px;
+    transition: width .25s;
+  }
+  #hint { color: #5b6472; font-size: 10px; margin-top: 6px; }
+  /* 项目菜单 */
+  #projMenu {
+    position: fixed;
+    background: #1b1f28;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 4px;
+    min-width: 220px;
+    display: none;
+    z-index: 100;
+    box-shadow: 0 8px 24px rgba(0,0,0,.6);
+  }
+  #projMenu.show { display: block; }
+  .menu-item {
+    padding: 7px 12px;
+    border-radius: 5px;
+    font-size: 12px;
+    color: #c9d1d9;
+    cursor: pointer;
+    white-space: nowrap;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .menu-item:hover { background: #2d333b; }
+  .menu-item .date { color: #6b7280; font-size: 11px; }
+  .menu-item.cur { color: #58a6ff; }
+  .menu-sep { height: 1px; background: #30363d; margin: 4px 0; }
+</style>
+</head>
+<body>
+<div id="card">
+  <div id="titlebar">
+    <span id="dot">●</span>
+    <span id="projName">项目名称 ▾</span>
+    <button class="tool" id="pinBtn" title="窗口置顶">📌</button>
+    <button class="tool" id="calBtn" title="日历">📅</button>
+    <button class="tool" id="hideBtn" title="隐藏到托盘">—</button>
+    <button class="tool" id="closeBtn" title="退出">✕</button>
+  </div>
 
-window.addEventListener('DOMContentLoaded', () => {
-    console.log('DOMContentLoaded')
-})
+  <div id="datebar">
+    <span id="dateText">拍摄日期 —</span>
+    <span id="warn">⚠ 出行准备未确认</span>
+  </div>
 
-// 监听全屏变化
-document.addEventListener('fullscreenchange', () => {
-    console.log('fullscreenchange')
-})
+  <div id="calPanel">
+    <div class="cal-head">
+      <button id="calPrev">‹</button>
+      <span id="calTitle">2026 年 10 月</span>
+      <button id="calNext">›</button>
+    </div>
+    <div id="calGrid"></div>
+    <button id="calSetBtn">将当前项目拍摄日期设为所选日期</button>
+  </div>
 
-// Safari / WebKit
-document.addEventListener('webkitfullscreenchange', () => {
-    console.log('webkitfullscreenchange')
-})
+  <div id="content"></div>
+
+  <div id="footer">
+    <div class="prog-row">
+      <span id="progLabel">总进度</span>
+      <span id="progPct">0%</span>
+    </div>
+    <div id="progBar"><div id="progFill"></div></div>
+    <div id="hint">单击子项切换：○ 无 → ◐ 待确认 → ✓ 已确认</div>
+  </div>
+</div>
+
+<div id="projMenu"></div>
+
+<script>
+/* ============ 数据结构 ============ */
+const S_NONE = 0, S_PEND = 1, S_DONE = 2;
+const S_TEXT = { 0: '无', 1: '待确认', 2: '已确认' };
+const S_ICON = { 0: '○', 1: '◐', 2: '✓' };
+
+const DEFAULT_STAGES = [
+  { name: '前期策划', items: ['确认拍摄主题', '场地踩点', '分镜脚本', '道具清单'] },
+  { name: '模特预约', items: ['联系模特', '确认档期', '确认报价', '签订协议'] },
+  { name: '出行准备', items: ['交通方案', '服装造型', '设备清单', '天气确认'] },
+  { name: '项目结束', items: ['素材备份', '后期交付', '结算尾款', '复盘归档'] },
+];
+
+const STORAGE_KEY = 'shoot_progress_data_v1';
+
+function makeProject(name, dateStr) {
+  return {
+    id: 'p' + Date.now() + Math.random().toString(36).slice(2, 7),
+    name: name,
+    date: dateStr,
+    stages: DEFAULT_STAGES.map(s => ({
+      name: s.name,
+      items: s.items.map(n => ({ name: n, status: S_NONE }))
+    }))
+  };
+}
+
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const d = JSON.parse(raw);
+      if (d && Array.isArray(d.projects) && d.projects.length) return d;
+    }
+  } catch (e) {}
+  return { projects: [makeProject('示例拍摄项目', todayStr())], cur: 0 };
+}
+
+function saveData() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+/* ============ 状态 ============ */
+const state = loadData();
+let cur = Math.min(state.cur || 0, state.projects.length - 1);
+let calYear, calMonth, calSelDate = null;   // 日历状态
+let expanded = {};   // 各阶段展开状态
+
+/* ============ DOM ============ */
+const $ = id => document.getElementById(id);
+const contentEl = $('content');
+const projMenuEl = $('projMenu');
+
+/* ============ 渲染主内容 ============ */
+function render() {
+  const proj = state.projects[cur];
+  if (!proj) return;
+  state.cur = cur;
+
+  // 标题
+  $('projName').textContent = proj.name + '  ▾';
+
+  // 日期条
+  const dInfo = parseDate(proj.date);
+  const delta = diffDays(dInfo, new Date());
+  let dd = delta > 0 ? `D-${delta}` : (delta === 0 ? '今天' : `已过 ${-delta} 天`);
+  $('dateText').textContent = `拍摄日期  ${proj.date}   ${dd}`;
+
+  // 出行准备预警
+  let warn = false;
+  if (delta <= 1) {
+    const travel = proj.stages.find(s => s.name.indexOf('出行') === 0);
+    if (travel && travel.items.some(i => i.status !== S_DONE)) warn = true;
+  }
+  $('warn').style.display = warn ? 'inline' : 'none';
+
+  // 阶段列表
+  contentEl.innerHTML = '';
+  proj.stages.forEach((stage, si) => {
+    const isOpen = expanded[si] !== false ? (expanded[si] === true || si === 0) : false;
+    // 默认只展开第一个
+    const open = expanded[si] === undefined ? (si === 0) : expanded[si];
+
+    const doneCount = stage.items.filter(i => i.status === S_DONE).length;
+    const total = stage.items.length;
+
+    const box = document.createElement('div');
+    box.className = 'stage';
+
+    const head = document.createElement('div');
+    head.className = 'stage-head';
+    head.innerHTML = `
+      <span class="stage-arrow">${open ? '▾' : '▸'}</span>
+      <span class="stage-title">${stage.name}</span>
+      <span class="stage-count ${doneCount === total ? 'done' : ''}">${doneCount}/${total}</span>
+    `;
+    head.onclick = () => { expanded[si] = !open; render(); };
+    box.appendChild(head);
+
+    const body = document.createElement('div');
+    body.className = 'stage-body' + (open ? '' : ' hide');
+
+    stage.items.forEach((item, ii) => {
+      const el = document.createElement('div');
+      el.className = 'item s' + item.status;
+      el.innerHTML = `
+        <span class="icon">${S_ICON[item.status]}</span>
+        <span class="name">${item.name}</span>
+        <span class="status">${S_TEXT[item.status]}</span>
+      `;
+      el.onclick = () => {
+        item.status = (item.status + 1) % 3;
+        saveData();
+        render();
+      };
+      body.appendChild(el);
+    });
+
+    box.appendChild(body);
+    contentEl.appendChild(box);
+  });
+
+  updateProgress();
+  renderCalendar();
+}
+
+/* ============ 进度条 ============ */
+function updateProgress() {
+  const proj = state.projects[cur];
+  if (!proj) return;
+  let total = 0, done = 0;
+  proj.stages.forEach(s => s.items.forEach(i => {
+    total++;
+    if (i.status === S_DONE) done++;
+  }));
+  const pct = total ? Math.round(done * 100 / total) : 0;
+  $('progFill').style.width = pct + '%';
+  $('progPct').textContent = `${pct}%  (${done}/${total})`;
+}
+
+/* ============ 日期工具 ============ */
+function parseDate(s) {
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+function diffDays(a, b) {
+  const A = new Date(a.getFullYear(), a.getMonth(), a.getDate());
+  const B = new Date(b.getFullYear(), b.getMonth(), b.getDate());
+  return Math.round((A - B) / 86400000);
+}
+
+/* ============ 日历 ============ */
+function initCalendar() {
+  const proj = state.projects[cur];
+  const d = proj ? parseDate(proj.date) : new Date();
+  calYear = d.getFullYear();
+  calMonth = d.getMonth();
+  calSelDate = proj ? proj.date : todayStr();
+}
+
+function renderCalendar() {
+  if (calYear === undefined) initCalendar();
+  const first = new Date(calYear, calMonth, 1);
+  const startWd = first.getDay();           // 0=周日
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const prevDays = new Date(calYear, calMonth, 0).getDate();
+
+  $('calTitle').textContent = `${calYear} 年 ${calMonth + 1} 月`;
+
+  const grid = $('calGrid');
+  grid.innerHTML = '';
+  ['日', '一', '二', '三', '四', '五', '六'].forEach(w => {
+    const el = document.createElement('div');
+    el.className = 'wd';
+    el.textContent = w;
+    grid.appendChild(el);
+  });
+
+  // 上月补位
+  for (let i = startWd - 1; i >= 0; i--) {
+    const el = document.createElement('div');
+    el.className = 'day other';
+    el.textContent = prevDays - i;
+    grid.appendChild(el);
+  }
+
+  const tStr = todayStr();
+  const projDates = {};
+  state.projects.forEach(p => { projDates[p.date] = true; });
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const ds = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const el = document.createElement('div');
+    el.className = 'day';
+    el.textContent = day;
+    if (ds === tStr) el.classList.add('today');
+    if (projDates[ds]) el.classList.add('has-proj');
+    if (ds === calSelDate) el.classList.add('sel');
+    el.onclick = () => {
+      calSelDate = ds;
+      // 如果该日期已有其他项目，直接切换过去
+      const idx = state.projects.findIndex(p => p.date === ds);
+      if (idx >= 0 && idx !== cur) {
+        cur = idx;
+        initCalendar();
+        expanded = {};
+        saveData();
+        render();
+        return;
+      }
+      renderCalendar();
+    };
+    grid.appendChild(el);
+  }
+
+  // 下月补位
+  const totalCells = startWd + daysInMonth;
+  const rest = (7 - totalCells % 7) % 7;
+  for (let i = 1; i <= rest; i++) {
+    const el = document.createElement('div');
+    el.className = 'day other';
+    el.textContent = i;
+    grid.appendChild(el);
+  }
+}
+
+$('calPrev').onclick = () => {
+  calMonth--;
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  renderCalendar();
+};
+$('calNext').onclick = () => {
+  calMonth++;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  renderCalendar();
+};
+$('calSetBtn').onclick = () => {
+  if (!calSelDate) return;
+  state.projects[cur].date = calSelDate;
+  saveData();
+  render();
+};
+
+/* ============ 项目菜单 ============ */
+function showProjMenu(anchor) {
+  projMenuEl.innerHTML = '';
+  state.projects.forEach((p, i) => {
+    const el = document.createElement('div');
+    el.className = 'menu-item' + (i === cur ? ' cur' : '');
+    el.innerHTML = `<span>${i === cur ? '✓ ' : '　'}${p.name}</span><span class="date">${p.date}</span>`;
+    el.onclick = () => {
+      cur = i;
+      initCalendar();
+      expanded = {};
+      saveData();
+      hideProjMenu();
+      render();
+    };
+    projMenuEl.appendChild(el);
+  });
+
+  const sep = document.createElement('div');
+  sep.className = 'menu-sep';
+  projMenuEl.appendChild(sep);
+
+  const addEl = document.createElement('div');
+  addEl.className = 'menu-item';
+  addEl.textContent = '＋ 新建项目';
+  addEl.onclick = () => {
+    hideProjMenu();
+    const name = prompt('项目名称：', '新拍摄项目');
+    if (name && name.trim()) {
+      const p = makeProject(name.trim(), todayStr());
+      state.projects.push(p);
+      cur = state.projects.length - 1;
+      initCalendar();
+      expanded = {};
+      saveData();
+      render();
+    }
+  };
+  projMenuEl.appendChild(addEl);
+
+  if (state.projects.length > 1) {
+    const delEl = document.createElement('div');
+    delEl.className = 'menu-item';
+    delEl.style.color = '#f85149';
+    delEl.textContent = '🗑 删除当前项目';
+    delEl.onclick = () => {
+      hideProjMenu();
+      if (confirm(`确定删除「${state.projects[cur].name}」？`)) {
+        state.projects.splice(cur, 1);
+        cur = 0;
+        initCalendar();
+        expanded = {};
+        saveData();
+        render();
+      }
+    };
+    projMenuEl.appendChild(delEl);
+  }
+
+  const rect = anchor.getBoundingClientRect();
+  projMenuEl.style.left = Math.min(rect.left, window.innerWidth - 240) + 'px';
+  projMenuEl.style.top = (rect.bottom + 4) + 'px';
+  projMenuEl.classList.add('show');
+}
+function hideProjMenu() { projMenuEl.classList.remove('show'); }
+
+$('projName').onclick = e => {
+  e.stopPropagation();
+  if (projMenuEl.classList.contains('show')) hideProjMenu();
+  else showProjMenu($('projName'));
+};
+document.addEventListener('click', e => {
+  if (!projMenuEl.contains(e.target)) hideProjMenu();
+});
+
+/* ============ 顶栏按钮 ============ */
+let pinned = true;
+$('pinBtn').classList.add('active');
+$('pinBtn').onclick = () => {
+  pinned = !pinned;
+  $('pinBtn').classList.toggle('active', pinned);
+  // 浏览器环境无法真正置顶，仅作视觉提示
+};
+
+$('calBtn').onclick = () => {
+  const p = $('calPanel');
+  p.classList.toggle('show');
+  $('calBtn').classList.toggle('active', p.classList.contains('show'));
+  if (p.classList.contains('show')) renderCalendar();
+};
+
+$('hideBtn').onclick = () => {
+  document.getElementById('card').style.display = 'none';
+  // 点击页面任意处恢复（浏览器里没有托盘，用双击恢复）
+  setTimeout(() => {
+    document.addEventListener('dblclick', function restore() {
+      document.getElementById('card').style.display = 'flex';
+      document.removeEventListener('dblclick', restore);
+    });
+  }, 100);
+};
+
+$('closeBtn').onclick = () => {
+  if (confirm('退出前会保存所有进度，确定退出？')) {
+    saveData();
+    // 浏览器环境无法真正退出，仅隐藏
+    document.getElementById('card').style.display = 'none';
+    setTimeout(() => {
+      document.addEventListener('dblclick', function restore() {
+        document.getElementById('card').style.display = 'flex';
+        document.removeEventListener('dblclick', restore);
+      });
+    }, 100);
+  }
+};
+
+/* ============ 窗口拖动 ============ */
+(function () {
+  const card = document.getElementById('card');
+  const bar = document.getElementById('titlebar');
+  let dragging = false, sx = 0, sy = 0, ox = 0, oy = 0;
+
+  bar.addEventListener('mousedown', e => {
+    if (e.target.closest('.tool') || e.target.closest('#projName')) return;
+    dragging = true;
+    sx = e.screenX; sy = e.screenY;
+    const r = card.getBoundingClientRect();
+    ox = r.left; oy = r.top;
+    card.style.position = 'fixed';
+    card.style.margin = '0';
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const nx = ox + (e.screenX - sx);
+    const ny = oy + (e.screenY - sy);
+    card.style.left = nx + 'px';
+    card.style.top = ny + 'px';
+  });
+  document.addEventListener('mouseup', () => dragging = false);
+})();
+
+/* ============ 启动 ============ */
+initCalendar();
+render();
+</script>
+</body>
+</html>
